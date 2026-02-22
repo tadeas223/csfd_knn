@@ -1,15 +1,12 @@
 import fs from "fs";
 import { csfd } from "node-csfd-api";
-
-const START_ID = 1;
-const END_ID = 100_000;
-const DELAY_MS = 500;
+import { exit } from "process";
 
 function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-function appendToJSON(movie) {
+function append_to_json(movie) {
     const movieData = {
         id: movie.id,
         title: movie.title,
@@ -26,17 +23,27 @@ function appendToJSON(movie) {
     fs.appendFileSync("movies.jsonl", line, "utf8");
 }
 
-function initJSON() {
+function init_json() {
     fs.writeFileSync("movies.jsonl", "", "utf8");
 }
 
-async function main() {
-    console.log("scraper started");
-    initJSON();
+function help() {
+    console.log("node scraper.js -e [number]");
+    console.log("-h            show help");
+    console.log("-s [number]   (default is 0) id of the first movie to get");
+    console.log("-e [number]   (required) id of the last movie to get");
+    console.log("-d [number]   (default is 500) delay in ms between each request");
+    exit(0);
+}
 
-    for (let id = START_ID; id <= END_ID; id++) {
+async function start_scraping({ start_id, end_id, delay }) {
+    init_json();
+    
+    let collected = 0;
+
+    for (let id = start_id; id <= end_id; id++) {
         try {
-            console.log(`id: ${id}`);
+            console.log(`trying id: ${id}`);
 
             const detail = await csfd.movie(id);
 
@@ -48,16 +55,73 @@ async function main() {
             //   continue;
             // }
 
-            appendToJSON(detail);
+            append_to_json(detail);
             collected++;
 
-            console.log(`saved: ${detail.title} (${id}/${END_ID})`);
+            console.log(`saved ${collected} (${id}/${end_id}): ${detail.title}`);
 
-            await sleep(DELAY_MS);
+            await sleep(delay);
         } catch (error) {
             continue;
         }
     }
+}
+
+function parse_args() {
+    const args = process.argv.slice(2);
+    
+    let start_id = 0;
+    let end_id = undefined;
+    let delay = 500;
+
+    args.forEach((arg, index) => {
+        switch(arg) {
+            case "-h":
+                help()
+            case "-s":
+                if(index + 1 >= args.length) {
+                    console.log("missing value")
+                }
+                start_id = parseInt(args[index + 1]);
+                if (isNaN(start_id)) {
+                    console.log("invalid start id");
+                    help();
+                }
+                break;
+            case "-e":
+                if(index + 1 >= args.length) {
+                    console.log("missing value")
+                }
+                end_id = parseInt(args[index + 1]);
+                if (isNaN(end_id)) {
+                    console.log("invalid end id");
+                    help();
+                }
+                break;
+            case "-d":
+                if(index + 1 >= args.length) {
+                    console.log("missing value")
+                }
+                delay = parseInt(args[index + 1]);
+                break;
+        }
+    });
+
+    if(end_id == undefined) {
+        console.log("missing arguments");
+        help();
+    }
+
+    return {start_id, end_id, delay};
+}
+
+async function main() {
+    const settings = parse_args(); 
+    console.log("scraper settings: " + JSON.stringify(settings));
+
+    console.log("scraper started");
+
+    await start_scraping(settings);
 
     console.log("scraping finished");
 }
