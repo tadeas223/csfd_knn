@@ -30,7 +30,7 @@ function init_json() {
 function help() {
     console.log("node scraper.js -e [number]");
     console.log("-h            show help");
-    console.log("-s [number]   (default is 0) id of the first movie to get");
+    console.log("-s [number]   (default is 1) id of the first movie to get");
     console.log("-e [number]   (required) id of the last movie to get");
     console.log("-d [number]   (default is 500) delay in ms between each request");
     exit(0);
@@ -70,7 +70,7 @@ async function start_scraping({ start_id, end_id, delay }) {
 function parse_args() {
     const args = process.argv.slice(2);
     
-    let start_id = 0;
+    let start_id = 1;
     let end_id = undefined;
     let delay = 500;
 
